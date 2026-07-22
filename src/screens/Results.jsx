@@ -10,9 +10,10 @@ const CONT_SHORT = { Africa: 'AFRICA', Asia: 'ASIA', Europe: 'EUROPE', 'North Am
 const pad2 = (n) => String(n).padStart(2, '0');
 
 export default function Results({ result, onPlayAgain, onMenu }) {
-  const { mode, count, continent, total, firstTry, recovered, missed } = result;
-  const score = firstTry + recovered;
-  const variant = continent ? `continent-${continent}` : String(count);
+  const { mode, count, continents, total, firstTry, recovered, missed } = result;
+  // Score/best count first-try answers only; recovered ones don't add to it.
+  const score = firstTry;
+  const variant = continents?.length ? `continent-${[...continents].sort().join('+')}` : String(count);
 
   // Capture the previous best BEFORE writing (StrictMode-safe: the read is pure,
   // the write happens once in an effect).
@@ -29,7 +30,11 @@ export default function Results({ result, onPlayAgain, onMenu }) {
     else if (e.key === 'Escape' || e.key === 'Backspace') onMenu();
   }, [onPlayAgain, onMenu]);
 
-  const countText = continent ? CONT_SHORT[continent] : count === 'all' ? 'ALL' : String(count);
+  const countText = continents?.length
+    ? continents.map((c) => CONT_SHORT[c]).join(' + ')
+    : count === 'all'
+    ? 'ALL'
+    : String(count);
 
   return (
     <Screen>

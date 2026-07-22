@@ -16,7 +16,7 @@ export default function App() {
   const [route, setRoute] = useState('home');
   const [mode, setMode] = useState(null); // capitals | flags | letter
   const [count, setCount] = useState(25);
-  const [continent, setContinent] = useState(null); // capitals/flags "by continent"
+  const [continents, setContinents] = useState(null); // capitals/flags "by continent"
   const [minutes, setMinutes] = useState(15);
   const [result, setResult] = useState(null);
   const [runId, setRunId] = useState(0); // forces a fresh run on "play again"
@@ -45,8 +45,8 @@ export default function App() {
         mode={mode}
         poolAll={mode === 'letter' ? letterPairsData.length : countriesData.length}
         onSelect={(cfg) => {
-          if (cfg.continent) { setContinent(cfg.continent); setCount('all'); }
-          else { setContinent(null); setCount(cfg.count); }
+          if (cfg.continents) { setContinents(cfg.continents); setCount('all'); }
+          else { setContinents(null); setCount(cfg.count); }
           newRun();
           setRoute('quiz');
         }}
@@ -63,10 +63,10 @@ export default function App() {
   } else if (route === 'quiz') {
     screen = (
       <PlayQuiz
-        key={`quiz-${mode}-${count}-${continent}-${runId}`}
+        key={`quiz-${mode}-${count}-${(continents || []).join('+')}-${runId}`}
         mode={mode}
         count={count}
-        continent={continent}
+        continents={continents}
         onDone={(r) => { setResult(r); setRoute('results'); }}
         onQuit={() => setRoute('mode')}
       />

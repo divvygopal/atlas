@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Screen from '../components/Screen.jsx';
-import ConfirmQuit from '../components/ConfirmQuit.jsx';
+import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import countriesData from '../data/countries.json';
 import letterPairsData from '../data/letterPairs.json';
 import { buildQuestions, shuffle } from '../lib/quiz.js';
@@ -36,15 +36,15 @@ function missedEntryOf(q) {
   return { left: `${q.pair.countryInitial} · ${q.pair.capitalInitial}`, right: `→ ${q.pair.answers.join(' / ')}` };
 }
 
-export default function PlayQuiz({ mode, count, continent = null, onDone, onQuit }) {
+export default function PlayQuiz({ mode, count, continents = null, onDone, onQuit }) {
   const initial = useMemo(
-    () => buildQuestions(mode, count, continent, { countries: countriesData, letterPairs: letterPairsData }),
-    [mode, count, continent],
+    () => buildQuestions(mode, count, continents, { countries: countriesData, letterPairs: letterPairsData }),
+    [mode, count, continents],
   );
-  return <PlayQuizInner mode={mode} count={count} continent={continent} initial={initial} onDone={onDone} onQuit={onQuit} />;
+  return <PlayQuizInner mode={mode} count={count} continents={continents} initial={initial} onDone={onDone} onQuit={onQuit} />;
 }
 
-function PlayQuizInner({ mode, count, continent, initial, onDone, onQuit }) {
+function PlayQuizInner({ mode, count, continents, initial, onDone, onQuit }) {
   const [list, setList] = useState(initial);
   const [phase, setPhase] = useState('round1'); // round1 | round2
   const [idx, setIdx] = useState(0);
@@ -83,7 +83,7 @@ function PlayQuizInner({ mode, count, continent, initial, onDone, onQuit }) {
     onDone({
       mode,
       count,
-      continent,
+      continents,
       total: initial.length,
       firstTry: s.firstTry,
       recovered: s.recovered,
@@ -137,8 +137,13 @@ function PlayQuizInner({ mode, count, continent, initial, onDone, onQuit }) {
   };
 
   // Escape → ask before quitting (a run in progress shouldn't drop on one key).
-  // Mount-guarded so the keypress can't cascade into the menu.
-  useScreenKeys((e) => { if (e.key === 'Escape') setConfirmQuit((v) => !v); }, []);
+  // Mount-guarded so the keypress can't cascade into the menu. Number keys are
+  // safe shortcuts here (answers never contain digits): 1 = show capital hint.
+  useScreenKeys((e) => {
+    if (e.key === 'Escape') { setConfirmQuit((v) => !v); return; }
+    if (confirmQuit) return;
+    if (e.key === '1' && q?.kind === 'letter') { e.preventDefault(); setHint(true); }
+  }, [confirmQuit, q]);
 
   const missCount = phase === 'round1' ? missedR1.current.length : stats.current.missedFinal.length;
   const progress = Math.round((idx / total) * 100);
@@ -195,9 +200,10 @@ function PlayQuizInner({ mode, count, continent, initial, onDone, onQuit }) {
               <button
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => setHint(true)}
-                style={{ fontFamily: "'VT323',monospace", fontSize: 20, letterSpacing: 2, color: '#37131e', background: '#C9A24B', border: 'none', padding: '5px 16px', cursor: 'pointer' }}
+                style={{ position: 'relative', fontFamily: "'VT323',monospace", fontSize: 20, letterSpacing: 2, color: '#37131e', background: '#C9A24B', border: 'none', padding: '5px 30px 5px 16px', cursor: 'pointer' }}
               >
                 💡 HINT · show capital
+                <span style={{ position: 'absolute', top: 3, right: 6, fontFamily: "'Press Start 2P',monospace", fontSize: 8, color: 'rgba(55,19,30,.5)' }}>1</span>
               </button>
             )}
           </div>
@@ -249,8 +255,12 @@ function PlayQuizInner({ mode, count, continent, initial, onDone, onQuit }) {
       <div style={{ position: 'relative', zIndex: 2, fontSize: 18, letterSpacing: 3, color: '#C9A24B', opacity: 0.55 }}>ESC · QUIT TO MENU</div>
 
       {confirmQuit && (
-        <ConfirmQuit
-          onQuit={onQuit}
+        <ConfirmDialog
+          title="QUIT TO MENU?"
+          sub="your progress in this run will be lost"
+          confirmLabel="QUIT"
+          cancelLabel="KEEP PLAYING"
+          onConfirm={onQuit}
           onCancel={() => { setConfirmQuit(false); setTimeout(() => inputRef.current?.focus(), 0); }}
         />
       )}

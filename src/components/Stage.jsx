@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import MuteButton from './MuteButton.jsx';
+import SettingsButton from './SettingsButton.jsx';
 
 // The app is a fixed 1512×982 design canvas (spec §6, desktop-only, no
 // responsive layout). We render at native size and scale the whole stage down
@@ -47,7 +47,7 @@ export default function Stage({ children }) {
       >
         {children}
       </div>
-      <MuteButton />
+      <SettingsButton />
     </div>
   );
 }

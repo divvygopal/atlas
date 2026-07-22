@@ -25,3 +25,14 @@ export function recordBest(mode, variant, score) {
   }
   return { best: prev, isNew: false };
 }
+
+// Wipe every stored high score (settings → reset).
+export function clearBests() {
+  try {
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith('atlas.best.'))
+      .forEach((k) => localStorage.removeItem(k));
+  } catch {
+    /* ignore */
+  }
+}

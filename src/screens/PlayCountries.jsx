@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Screen from '../components/Screen.jsx';
 import WorldMap from '../components/WorldMap.jsx';
 import OutlineMap from '../components/OutlineMap.jsx';
-import ConfirmQuit from '../components/ConfirmQuit.jsx';
+import ConfirmDialog from '../components/ConfirmDialog.jsx';
+import { overlay } from '../lib/overlay.js';
 import countriesData from '../data/countries.json';
 import { resolveCountry, normalize } from '../lib/answer.js';
 import { sound } from '../lib/sound.js';
@@ -163,11 +164,19 @@ export default function PlayCountries({ minutes, onDone, onQuit }) {
   // Escape → close an open overlay first, otherwise quit. Mount-guarded so the
   // keypress can't cascade into the menu.
   useScreenKeys((e) => {
-    if (e.key !== 'Escape') return;
-    if (showMap) { setShowMap(false); setTimeout(() => inputRef.current?.focus(), 0); }
-    else if (paused) setPaused(false);
-    else setConfirmQuit((v) => !v); // ask before dropping the run
-  }, [showMap, paused]);
+    if (e.key === 'Escape') {
+      if (showMap) { setShowMap(false); setTimeout(() => inputRef.current?.focus(), 0); }
+      else if (paused) setPaused(false);
+      else setConfirmQuit((v) => !v); // ask before dropping the run
+      return;
+    }
+    // Number shortcuts (answers never contain digits, so they can't collide
+    // with typing). Stand down while any overlay is up.
+    if (paused || showMap || confirmQuit || overlay.active()) return;
+    if (e.key === '1') { e.preventDefault(); setPaused(true); }
+    else if (e.key === '2') { e.preventDefault(); setShowMap(true); }
+    else if (e.key === '3') { e.preventDefault(); endNow(); }
+  }, [showMap, paused, confirmQuit]);
 
   const timeColor = secs <= 60 ? '#E24A4A' : '#F2C94C';
   const inputBorder = flash === 'wrong' ? '#E24A4A' : flash === 'correct' ? '#4CC15A' : '#C9A24B';
@@ -264,14 +273,14 @@ export default function PlayCountries({ minutes, onDone, onQuit }) {
           </div>
         </div>
 
-        {/* Footer */}
+        {/* Footer — faded numbers are the keyboard shortcuts */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button onClick={() => setPaused(true)} onMouseDown={(e) => e.preventDefault()} style={footBtn('#C9A24B', '#37131e')}>❚❚ PAUSE</button>
-            <button onClick={() => setShowMap(true)} onMouseDown={(e) => e.preventDefault()} style={footBtn('#EDE0C7', '#37131e')}>🗺 SHOW MAP</button>
-            <span style={{ fontSize: 19, letterSpacing: 2, color: '#C9A24B', opacity: 0.75 }}>ESC TO QUIT</span>
+            <button onClick={() => setPaused(true)} onMouseDown={(e) => e.preventDefault()} style={footBtn('#C9A24B', '#37131e')}><Kbd>1</Kbd>❚❚ PAUSE</button>
+            <button onClick={() => setShowMap(true)} onMouseDown={(e) => e.preventDefault()} style={footBtn('#EDE0C7', '#37131e')}><Kbd>2</Kbd>🗺 SHOW MAP</button>
+            <span style={{ fontSize: 19, letterSpacing: 2, color: '#C9A24B', opacity: 0.75 }}>ESC · QUIT</span>
           </div>
-          <button onClick={endNow} style={{ fontFamily: "'Press Start 2P',monospace", fontSize: 13, color: '#EDE0C7', background: '#D64545', padding: '14px 22px', boxShadow: '5px 5px 0 #1a0910', border: 'none', cursor: 'pointer' }}>END GAME</button>
+          <button onClick={endNow} onMouseDown={(e) => e.preventDefault()} style={{ position: 'relative', fontFamily: "'Press Start 2P',monospace", fontSize: 13, color: '#EDE0C7', background: '#D64545', padding: '14px 30px 14px 22px', boxShadow: '5px 5px 0 #1a0910', border: 'none', cursor: 'pointer' }}>END GAME<Kbd dark>3</Kbd></button>
         </div>
 
         {/* Pause overlay (session-only) — covers the board so the timer really pauses */}
@@ -308,8 +317,12 @@ export default function PlayCountries({ minutes, onDone, onQuit }) {
       )}
 
       {confirmQuit && (
-        <ConfirmQuit
-          onQuit={onQuit}
+        <ConfirmDialog
+          title="QUIT TO MENU?"
+          sub="your progress in this run will be lost"
+          confirmLabel="QUIT"
+          cancelLabel="KEEP PLAYING"
+          onConfirm={onQuit}
           onCancel={() => { setConfirmQuit(false); setTimeout(() => inputRef.current?.focus(), 0); }}
         />
       )}
@@ -318,7 +331,15 @@ export default function PlayCountries({ minutes, onDone, onQuit }) {
 }
 
 const footBtn = (bg, fg) => ({
+  position: 'relative',
   fontFamily: "'VT323',monospace", fontSize: 21, letterSpacing: 1,
-  color: fg, background: bg, border: 'none', padding: '7px 16px',
+  color: fg, background: bg, border: 'none', padding: '7px 26px 7px 16px',
   boxShadow: '3px 3px 0 #1a0910', cursor: 'pointer',
 });
+
+// Small faded shortcut badge shown in the corner of a button.
+function Kbd({ children, dark }) {
+  return (
+    <span style={{ position: 'absolute', top: 3, right: 5, fontFamily: "'Press Start 2P',monospace", fontSize: 8, color: dark ? 'rgba(237,224,199,.5)' : 'rgba(55,19,30,.45)' }}>{children}</span>
+  );
+}

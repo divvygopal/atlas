@@ -7,14 +7,15 @@ export function shuffle(arr) {
   return a;
 }
 
-// Build the round-1 question list for a quiz mode. `continent` (Capitals/Flags
-// only) restricts the pool to one continent and uses all of it.
-export function buildQuestions(mode, count, continent, { countries, letterPairs }) {
+// Build the round-1 question list for a quiz mode. `continents` (Capitals/Flags
+// only) restricts the pool to the chosen continents and uses all of them.
+export function buildQuestions(mode, count, continents, { countries, letterPairs }) {
+  const byContinent = continents && continents.length;
   let pool;
   if (mode === 'letter') pool = letterPairs;
-  else pool = continent ? countries.filter((c) => c.continent === continent) : countries;
+  else pool = byContinent ? countries.filter((c) => continents.includes(c.continent)) : countries;
   const shuffled = shuffle(pool);
-  const n = continent ? pool.length : count === 'all' ? pool.length : Math.min(count, pool.length);
+  const n = byContinent ? pool.length : count === 'all' ? pool.length : Math.min(count, pool.length);
   const taken = shuffled.slice(0, n);
 
   return taken.map((item, i) => {
